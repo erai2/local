@@ -184,7 +184,7 @@ with tab2:
         selected_file_for_summary = st.selectbox("요약할 파일 선택", options=[""] + files, key="summary_select")
         if selected_file_for_summary and st.button("선택한 파일 요약하기"):
             with st.spinner(f"'{selected_file_for_summary}' 파일 요약 중..."):
-                doc = load_documents(os.path.join(UPLOAD_DIR, selected_file_for_summary))
+               doc = load_documents(os.path.join(UPLOAD_DIR, selected_file_for_summary))
                 if doc:
                     summary = summarize_text(doc[0].page_content, openai_api_key)
                     st.success("요약 결과:")

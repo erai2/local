@@ -20,7 +20,7 @@ UPLOAD_DIR = "./uploaded_docs"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# --- 1. Core Logic Functions (Integrating previous files) ---
+# --- 1. Core Logic Functions ---
 
 @st.cache_data
 def load_documents(path_or_directory):
@@ -50,26 +50,34 @@ def load_documents(path_or_directory):
                 continue
             docs.extend(loader.load())
         except Exception as e:
-            # Display a warning but continue execution
             st.warning(f"'{filename}' 파일 로딩 중 오류 발생: {e}")
     return docs
 
 @st.cache_resource
 def build_rag_chain(_docs, openai_api_key):
-    """Builds the RAG chain."""
+    """Builds the RAG chain, returns None if it fails."""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     splits = text_splitter.split_documents(_docs)
 
-    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-    vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
+    # ✅ ERROR FIX: Check if there are any text chunks to process after splitting.
+    if not splits:
+        return None
 
-    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    qa_chain = ConversationalRetrievalChain.from_llm(
-        llm=ChatOpenAI(temperature=0, openai_api_key=openai_api_key),
-        retriever=vectorstore.as_retriever(),
-        memory=memory
-    )
-    return qa_chain
+    try:
+        embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
+
+        memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+        qa_chain = ConversationalRetrievalChain.from_llm(
+            llm=ChatOpenAI(temperature=0, openai_api_key=openai_api_key),
+            retriever=vectorstore.as_retriever(),
+            memory=memory
+        )
+        return qa_chain
+    except Exception as e:
+        st.error(f"RAG 체인 빌드 중 오류 발생: {e}")
+        return None
+
 
 @st.cache_data
 def summarize_text(text, openai_api_key, model="gpt-3.5-turbo"):
@@ -126,8 +134,13 @@ with tab1:
             with st.spinner("문서를 분석하여 RAG 체인을 빌드하는 중..."):
                 docs = load_documents(UPLOAD_DIR)
                 if docs:
-                    st.session_state.rag_chain = build_rag_chain(docs, openai_api_key)
-                    st.success("RAG 체인 빌드 완료!")
+                    # ✅ ERROR FIX: Check the return value of build_rag_chain
+                    chain = build_rag_chain(docs, openai_api_key)
+                    if chain:
+                        st.session_state.rag_chain = chain
+                        st.success("RAG 체인 빌드 완료!")
+                    else:
+                        st.error("문서에서 텍스트를 추출하지 못해 RAG 체인을 빌드할 수 없습니다.")
                 else:
                     st.error("문서 로딩에 실패했습니다. 지원하는 형식의 파일인지 확인해주세요.")
         
@@ -167,7 +180,6 @@ with tab2:
                 file_path = os.path.join(UPLOAD_DIR, selected_file_for_summary)
                 docs = load_documents(file_path)
                 
-                # ✅ ERROR FIX: Check if the docs list is not empty before accessing it
                 if docs:
                     summary = summarize_text(docs[0].page_content, openai_api_key)
                     st.success("요약 결과:")
@@ -188,9 +200,10 @@ with tab3:
                     file_path = os.path.join(UPLOAD_DIR, f)
                     loaded_docs = load_documents(file_path)
                     
-                    # ✅ ERROR FIX: Check if the loaded_docs list is not empty
                     if loaded_docs:
-                        docs_for_cluster.append({"filename": f, "text": loaded_docs[0].page_content})
+                        # Ensure page_content is not empty
+                        if loaded_docs[0].page_content.strip():
+                            docs_for_cluster.append({"filename": f, "text": loaded_docs[0].page_content})
                 
                 if len(docs_for_cluster) >= 2:
                     texts = [d['text'] for d in docs_for_cluster]

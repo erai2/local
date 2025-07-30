@@ -27,17 +27,14 @@ def load_documents(path_or_directory):
     """
     Loads all documents from a directory if the path is a directory,
     or loads a single file if the path is a file.
-    (Integrates document_loader.py, utils.py and fixes the error)
     """
     docs = []
     paths_to_load = []
 
     if os.path.isdir(path_or_directory):
-        # If the path is a directory, add all files inside to the loading list
         for filename in os.listdir(path_or_directory):
             paths_to_load.append(os.path.join(path_or_directory, filename))
     elif os.path.isfile(path_or_directory):
-        # If the path is a file, add only that file to the loading list
         paths_to_load.append(path_or_directory)
 
     for path in paths_to_load:
@@ -50,15 +47,16 @@ def load_documents(path_or_directory):
             elif filename.endswith(".txt"):
                 loader = TextLoader(path, encoding="utf-8")
             else:
-                continue # Skip unsupported file formats
+                continue
             docs.extend(loader.load())
         except Exception as e:
-            st.warning(f"Error loading '{filename}': {e}")
+            # Display a warning but continue execution
+            st.warning(f"'{filename}' 파일 로딩 중 오류 발생: {e}")
     return docs
 
 @st.cache_resource
 def build_rag_chain(_docs, openai_api_key):
-    """Builds the RAG chain (Integrates rag_engine.py, rag_vector.py)"""
+    """Builds the RAG chain."""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     splits = text_splitter.split_documents(_docs)
 
@@ -75,7 +73,7 @@ def build_rag_chain(_docs, openai_api_key):
 
 @st.cache_data
 def summarize_text(text, openai_api_key, model="gpt-3.5-turbo"):
-    """Summarizes document content using AI (Integrates summarize.py)"""
+    """Summarizes document content using AI."""
     client = ChatOpenAI(temperature=0, openai_api_key=openai_api_key, model_name=model)
     prompt = f"다음 텍스트를 핵심 내용만 간추려 한국어로 명확하게 요약해줘:\n\n{text[:4000]}"
     summary = client.invoke(prompt)
@@ -86,14 +84,13 @@ def summarize_text(text, openai_api_key, model="gpt-3.5-turbo"):
 # Sidebar: Settings and File Management
 with st.sidebar:
     st.header("⚙️ 설정")
-    # Handle API Key for both local and deployed environments
     if 'OPENAI_API_KEY' in st.secrets:
         openai_api_key = st.secrets['OPENAI_API_KEY']
-        st.success("API Key loaded securely.")
+        st.success("API Key가 안전하게 로드되었습니다.")
     else:
         openai_api_key = st.text_input("OpenAI API Key", type="password")
         if not openai_api_key:
-            st.warning("Please enter your OpenAI API Key.")
+            st.warning("OpenAI API 키를 입력해주세요.")
 
     st.header("📂 문서 관리")
     uploaded_file = st.file_uploader("문서 업로드", accept_multiple_files=False)
@@ -101,7 +98,7 @@ with st.sidebar:
         file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        st.success(f"'{uploaded_file.name}' uploaded successfully!")
+        st.success(f"'{uploaded_file.name}' 업로드 완료!")
         st.rerun()
 
     files = sorted(os.listdir(UPLOAD_DIR))
@@ -109,10 +106,10 @@ with st.sidebar:
         selected_file_for_delete = st.selectbox("삭제할 파일 선택", options=[""] + files)
         if selected_file_for_delete and st.button("선택한 파일 삭제"):
             os.remove(os.path.join(UPLOAD_DIR, selected_file_for_delete))
-            st.success(f"'{selected_file_for_delete}' deleted successfully!")
+            st.success(f"'{selected_file_for_delete}' 삭제 완료!")
             st.rerun()
     else:
-        st.info("No documents uploaded yet.")
+        st.info("업로드된 문서가 없습니다.")
 
 # Main Screen: Tabbed Interface for Features
 tab1, tab2, tab3 = st.tabs(["💬 문서 기반 Q&A (RAG)", "✍️ 문서 요약", "📊 문서 군집 분석"])
@@ -125,17 +122,15 @@ with tab1:
     elif not files:
         st.info("질문할 문서를 먼저 업로드해주세요.")
     else:
-        # Initialize RAG chain
         if "rag_chain" not in st.session_state or st.button("문서 변경, 체인 재생성"):
             with st.spinner("문서를 분석하여 RAG 체인을 빌드하는 중..."):
-                docs = load_documents(UPLOAD_DIR) # The function now correctly handles a directory
+                docs = load_documents(UPLOAD_DIR)
                 if docs:
                     st.session_state.rag_chain = build_rag_chain(docs, openai_api_key)
-                    st.success("RAG chain built successfully!")
+                    st.success("RAG 체인 빌드 완료!")
                 else:
-                    st.error("Failed to load documents.")
+                    st.error("문서 로딩에 실패했습니다. 지원하는 형식의 파일인지 확인해주세요.")
         
-        # Chat UI
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
@@ -156,7 +151,7 @@ with tab1:
                         st.markdown(answer)
                         st.session_state.messages.append({"role": "assistant", "content": answer})
                     else:
-                        st.error("RAG chain is not initialized.")
+                        st.error("RAG 체인이 초기화되지 않았습니다.")
 
 # --- Tab 2: Document Summary ---
 with tab2:
@@ -170,14 +165,15 @@ with tab2:
         if selected_file_for_summary and st.button("선택한 파일 요약하기"):
             with st.spinner(f"'{selected_file_for_summary}' 파일 요약 중..."):
                 file_path = os.path.join(UPLOAD_DIR, selected_file_for_summary)
-                # The function now correctly handles a single file path
                 docs = load_documents(file_path)
+                
+                # ✅ ERROR FIX: Check if the docs list is not empty before accessing it
                 if docs:
                     summary = summarize_text(docs[0].page_content, openai_api_key)
                     st.success("요약 결과:")
                     st.write(summary)
                 else:
-                    st.error("Could not read document content.")
+                    st.error("문서 내용을 읽을 수 없습니다. 파일이 손상되었거나 지원하지 않는 형식일 수 있습니다.")
 
 # --- Tab 3: Document Clustering ---
 with tab3:
@@ -189,12 +185,14 @@ with tab3:
             with st.spinner("모든 문서를 벡터화하고 군집 분석을 수행하는 중..."):
                 docs_for_cluster = []
                 for f in files:
-                    # Use the modified load_documents function here as well
-                    loaded_docs = load_documents(os.path.join(UPLOAD_DIR, f))
+                    file_path = os.path.join(UPLOAD_DIR, f)
+                    loaded_docs = load_documents(file_path)
+                    
+                    # ✅ ERROR FIX: Check if the loaded_docs list is not empty
                     if loaded_docs:
                         docs_for_cluster.append({"filename": f, "text": loaded_docs[0].page_content})
                 
-                if docs_for_cluster:
+                if len(docs_for_cluster) >= 2:
                     texts = [d['text'] for d in docs_for_cluster]
                     model = SentenceTransformer("all-MiniLM-L6-v2")
                     embeddings = model.encode(texts)
@@ -210,4 +208,4 @@ with tab3:
                     st.success("군집 분석 결과:")
                     st.dataframe(result_df.sort_values(by="그룹 번호").reset_index(drop=True))
                 else:
-                    st.error("Could not extract text for analysis.")
+                    st.error("분석할 수 있는 텍스트를 가진 문서가 2개 미만입니다.")

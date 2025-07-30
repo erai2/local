@@ -1,8 +1,12 @@
-
-fastapi
-uvicorn
+streamlit
+langchain
+langchain-openai
+langchain-community
 faiss-cpu
 sentence-transformers
+scikit-learn
+pypdf
 unstructured
-pdfminer.six
-python-docx
+pandas
+openai
+tiktoken

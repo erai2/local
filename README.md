@@ -51,3 +51,13 @@ The `SuamSaJuAnalyzer` example demonstrates how Suam Myeongri concepts can be st
 
 These routines are intentionally simple so you can adapt them to your own web interfaces, chatbots or analytics tools.
 
+
+## SuamSaJuAnalyzer Web Page
+
+A simple Streamlit page `saju_page.py` provides a UI for storing and searching Suam Myeongri theory. Launch it with:
+
+```bash
+streamlit run saju_page.py
+```
+
+The page lets you add theory or terminology, search existing entries and run a basic Saju analysis.

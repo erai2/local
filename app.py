@@ -100,12 +100,13 @@ with st.sidebar:
             st.warning("OpenAI API 키를 입력해주세요.")
 
     st.header("📂 문서 관리")
-    uploaded_file = st.file_uploader("문서 업로드", accept_multiple_files=False)
-    if uploaded_file:
-        file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        st.success(f"'{uploaded_file.name}' 업로드 완료!")
+    uploaded_files = st.file_uploader("문서 업로드", accept_multiple_files=True)
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success(f"'{uploaded_file.name}' 업로드 완료!")
         st.rerun()
 
     files = sorted(os.listdir(UPLOAD_DIR))

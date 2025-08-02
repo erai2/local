@@ -49,9 +49,6 @@ pip-delete-this-directory.txt
 # Uploaded files
 uploaded_docs/
 
-# Local SQLite databases
-*.db
-
 # Misc
 .DS_Store
 Thumbs.db

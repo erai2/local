@@ -162,14 +162,6 @@ with st.sidebar:
         openai_api_key = st.text_input("OpenAI API Key", type="password")
         if not openai_api_key: st.warning("OpenAI API 키를 입력해주세요.")
 
-    st.header("📂 문서 관리")
-    if uploaded_file:
-    for file in uploaded_file:
-        with open(os.path.join(UPLOAD_DIR, file.name), "wb") as f:
-            f.write(file.getbuffer())
-    st.success(f"{len(uploaded_file)}개 파일 업로드 완료!")
-    st.rerun()
-
     files = sorted(os.listdir(UPLOAD_DIR))
     if files:
         selected_file_for_delete = st.selectbox("삭제할 파일 선택", options=[""] + files)

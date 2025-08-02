@@ -28,10 +28,10 @@ Do **not** commit your actual `secrets.toml` file or any `.env` files. The provi
 
 Uploaded documents are stored in the `uploaded_docs/` directory and are also ignored by Git.
 
-## SuamSaJuAnalyzer
+## SuriAnalyzer
 
 The repository now includes an example script `saju_analyzer.py` demonstrating how to
-store and analyze Suam Myeongri data using SQLite. Run the file directly to see
+store and analyze SuriAnalyzer data using SQLite. Run the file directly to see
 a simple analysis routine:
 
 ```bash
@@ -40,9 +40,9 @@ python saju_analyzer.py
 
 Databases created by the script are excluded from Git via `*.db` in `.gitignore`.
 
-## SuamSaJuAnalyzer Highlights
+## SuriAnalyzer Highlights
 
-The `SuamSaJuAnalyzer` example demonstrates how Suam Myeongri concepts can be stored and queried from a SQLite database. Key features include:
+The `SuriAnalyzer` example demonstrates how Suri Myeongri concepts can be stored and queried from a SQLite database. Key features include:
 
 * **DB auto-creation** – Tables for core theory (`basic_theory`), terminology (`terminology`) and case studies (`case_studies`) are created on first run.
 * **Data entry helpers** – Methods such as `add_basic_theory()` and `add_terminology()` simplify populating the database with new knowledge.
@@ -52,9 +52,9 @@ The `SuamSaJuAnalyzer` example demonstrates how Suam Myeongri concepts can be st
 These routines are intentionally simple so you can adapt them to your own web interfaces, chatbots or analytics tools.
 
 
-## SuamSaJuAnalyzer Web Page
+## SuriAnalyzer Web Page
 
-A simple Streamlit page `saju_page.py` provides a UI for storing and searching Suam Myeongri theory. Launch it with:
+A simple Streamlit page `saju_page.py` provides a UI for storing and searching Suri theory. Launch it with:
 
 ```bash
 streamlit run saju_page.py

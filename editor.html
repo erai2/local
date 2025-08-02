@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>분석기 & 편집기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .nav-btn.active { background-color: #007bff; color: white; font-weight: 700; }
+        .nav-btn-special.active { background-color: #28a745; color: white; font-weight: 700; }
+        .saju-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; text-align: center; border: 1px solid #dee2e6; padding: 1rem; border-radius: 0.5rem; background-color: #f1f3f5; width: 280px; margin: 1rem auto; }
+        .saju-pillar { font-weight: 500; color: #495057; }
+        .saju-char { font-size: 2rem; font-weight: 700; line-height: 1; }
+        .highlight-term { cursor: pointer; background-color: #e9ecef; padding: 0 4px; border-radius: 3px; transition: background-color 0.2s; }
+        .highlight-term:hover { background-color: #ced4da; }
+        .highlight-saju-char { background-color: #ffd700; border-radius: 4px; transition: all 0.2s; transform: scale(1.1); }
+        .modal { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        .accordion-content { background-color: #f8f9fa; }
+        .prose { color: #343a40; }
+        .prose h3 { color: #0056b3; }
+        .prose strong { color: #0056b3; }
+        .prose ul { list-style-type: disc; padding-left: 1.5rem; }
+        .prose li { margin-bottom: 0.5rem; }
+        #editor-section { border-top: 4px solid #007bff; }
+        .editor-input { border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0.5rem; width: 100%; transition: border-color 0.2s; }
+        .editor-input:focus { border-color: #007bff; outline: none; box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); }
+        .editor-textarea { min-height: 150px; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-blue-800">수리 분석기: Level 1</h1>
+            <p class="text-gray-600 mt-2">상법(象法)의 이해와 실제 적용</p>
+        </header>
+
+        <nav class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8 bg-white p-4 rounded-xl shadow-md sticky top-4 z-10">
+            <!-- Navigation buttons will be generated here -->
+        </nav>
+
+        <main id="content-area">
+            <!-- Content will be rendered here -->
+        </main>
+
+    </div>
+    
+    <!-- Editor Section -->
+    <section id="editor-section" class="container mx-auto p-4 md:p-8 mt-12 bg-white rounded-xl shadow-lg">
+        <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">콘텐츠 수정 / 추가</h2>
+        
+        <!-- Add New Case Form -->
+        <div id="add-case-form" class="mb-8 p-6 bg-gray-50 rounded-lg border">
+            <h3 class="text-2xl font-semibold mb-4 text-gray-700">새로운 사례 추가하기</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="new-case-title" class="block font-medium mb-1">사례 제목</label>
+                    <input type="text" id="new-case-title" class="editor-input" placeholder="예: <사례 8> 거부 팔자">
+                </div>
+                <div>
+                    <label for="new-case-saju-type" class="block font-medium mb-1">명식 종류</label>
+                    <input type="text" id="new-case-saju-type" class="editor-input" placeholder="예: 乾命">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="new-case-pillars" class="block font-medium mb-1">사주팔자 (8글자)</label>
+                    <input type="text" id="new-case-pillars" class="editor-input" placeholder="예: 甲辰 丁酉 甲子 癸巳 (띄어쓰기 없이 8자 연속 입력)">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="new-case-analysis" class="block font-medium mb-1">상세 분석 (HTML 태그 사용 가능)</label>
+                    <textarea id="new-case-analysis" class="editor-input editor-textarea" placeholder="예: <p><strong>분석:</strong> ⽊⽕勢가...</p>"></textarea>
+                </div>
+            </div>
+            <button id="add-case-btn" class="mt-4 px-6 py-2 bg-green-600 text-white font-bold rounded-lg shadow hover:bg-green-700 transition">사례 추가하기</button>
+        </div>
+
+        <div class="text-center">
+             <a id="download-json-btn" class="inline-block px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition" href="#">수정된 데이터(JSON) 다운로드</a>
+        </div>
+    </section>
+
+    <!-- Modal Structure -->
+    <div id="modal" class="modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col transform scale-95">
+            <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 id="modal-title" class="text-2xl font-bold text-blue-800"></h2>
+                <button id="close-modal" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <div id="modal-body" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="modal-saju" class="flex flex-col items-center justify-center"></div>
+                    <div id="modal-analysis" class="prose max-w-none text-gray-700"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            let appData = {};
+
+            // UI Elements
+            const navContainer = document.querySelector('nav');
+            const contentArea = document.getElementById('content-area');
+            const modal = document.getElementById('modal');
+            const closeModalBtn = document.getElementById('close-modal');
+            const downloadBtn = document.getElementById('download-json-btn');
+            
+            // Editor Elements
+            const addCaseBtn = document.getElementById('add-case-btn');
+            const newCaseTitleInput = document.getElementById('new-case-title');
+            const newCaseSajuTypeInput = document.getElementById('new-case-saju-type');
+            const newCasePillarsInput = document.getElementById('new-case-pillars');
+            const newCaseAnalysisInput = document.getElementById('new-case-analysis');
+
+            // --- DATA LOADING ---
+            try {
+                const response = await fetch('saju_data.json');
+                if (!response.ok) {
+                    throw new Error('saju_data.json 파일을 찾을 수 없습니다. 두 파일이 같은 폴더에 있는지 확인하세요.');
+                }
+                appData = await response.json();
+                initializeApp();
+            } catch (error) {
+                contentArea.innerHTML = `<div class="text-center text-red-600 bg-red-100 p-8 rounded-lg">${error.message}</div>`;
+                console.error(error);
+            }
+
+            // --- INITIALIZATION ---
+            function initializeApp() {
+                createNavButtons();
+                const firstKey = Object.keys(appData)[0];
+                renderContent(firstKey);
+                document.querySelector('.nav-btn').classList.add('active');
+                setupNavEventListeners();
+                setupModalEventListeners();
+                setupEditorEventListeners();
+                updateDownloadLink();
+            }
+
+            // --- UI RENDERING ---
+            function createNavButtons() {
+                navContainer.innerHTML = ''; // Clear existing buttons
+                Object.keys(appData).forEach((key) => {
+                    const data = appData[key];
+                    const button = document.createElement('button');
+                    button.dataset.target = key;
+                    button.textContent = data.navTitle;
+                    if (data.isSpecial) {
+                        button.className = 'nav-btn nav-btn-special bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow hover:bg-green-200 transition duration-300';
+                    } else {
+                        button.className = 'nav-btn bg-white text-blue-600 px-4 py-2 rounded-lg shadow hover:bg-blue-50 transition duration-300';
+                    }
+                    navContainer.appendChild(button);
+                });
+            }
+
+            function createAccordion(items) {
+                 let accordionHtml = '<div class="space-y-4">';
+                items.forEach((item) => {
+                    accordionHtml += `
+                        <div class="bg-white rounded-lg shadow-sm">
+                            <button class="w-full text-left p-4 flex justify-between items-center accordion-toggle">
+                                <span class="font-semibold text-blue-700">${item.title}</span>
+                                <svg class="w-6 h-6 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div class="accordion-content p-4 border-t border-gray-200 text-gray-600 hidden prose max-w-none">
+                                ${item.content.replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+                    `;
+                });
+                accordionHtml += '</div>';
+                return accordionHtml;
+            }
+            
+            function createCaseCard(caseItem) {
+                return `
+                    <div class="case-card bg-white p-6 rounded-xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between" data-id="${caseItem.id}">
+                        <div>
+                           <h4 class="text-xl font-bold text-blue-800 mb-2">${caseItem.title}</h4>
+                           <p class="text-gray-500 text-sm mb-4">${caseItem.sajuType}</p>
+                        </div>
+                        <div class="text-right text-blue-600 font-semibold">자세히 보기 →</div>
+                    </div>
+                `;
+            }
+            
+            function renderContent(key) {
+                const data = appData[key];
+                if (!data) return;
+
+                let contentHtml = `
+                    <section id="${key}" class="space-y-12">
+                        <div class="text-center bg-white p-8 rounded-xl shadow-md">
+                            <h2 class="text-3xl font-bold mb-2">${data.title}</h2>
+                            <p class="text-lg text-gray-600 max-w-3xl mx-auto">${data.description}</p>
+                        </div>
+                `;
+
+                data.sections.forEach(section => {
+                    if(section.title) {
+                        contentHtml += `<div><h3 class="text-2xl font-semibold mb-6 text-center text-gray-700">${section.title}</h3>`;
+                    } else {
+                        contentHtml += `<div>`;
+                    }
+                    if (section.type === 'accordion') {
+                        contentHtml += createAccordion(section.items);
+                    } else if (section.type === 'cases') {
+                        contentHtml += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            ${section.cases.map(createCaseCard).join('')}
+                                        </div>`;
+                    }
+                    contentHtml += `</div>`;
+                });
+
+                contentHtml += `</section>`;
+                contentArea.innerHTML = contentHtml;
+                addContentEventListeners();
+            }
+
+            // --- EVENT LISTENERS ---
+            function setupNavEventListeners() {
+                navContainer.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('nav-btn')) {
+                        const targetId = e.target.dataset.target;
+                        renderContent(targetId);
+                        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'nav-btn-special'));
+                        
+                        if(appData[targetId].isSpecial) {
+                            e.target.classList.add('nav-btn-special', 'active');
+                        } else {
+                            e.target.classList.add('active');
+                        }
+                    }
+                });
+            }
+
+            function addContentEventListeners() {
+                document.querySelectorAll('.accordion-toggle').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const content = button.nextElementSibling;
+                        const icon = button.querySelector('svg');
+                        content.classList.toggle('hidden');
+                        icon.classList.toggle('rotate-180');
+                    });
+                });
+                
+                document.querySelectorAll('.case-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        showModal(card.dataset.id);
+                    });
+                });
+            }
+
+            function setupModalEventListeners() {
+                closeModalBtn.addEventListener('click', hideModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) hideModal();
+                });
+            }
+
+            function setupEditorEventListeners() {
+                addCaseBtn.addEventListener('click', addNewCase);
+            }
+
+            // --- MODAL LOGIC ---
+            function findCaseById(id) {
+                const allCasesData = appData.allCases.sections.find(s => s.type === 'cases');
+                return allCasesData ? allCasesData.cases.find(c => c.id === id) : null;
+            }
+            
+            function showModal(caseId) {
+                const caseData = findCaseById(caseId);
+                if (!caseData) return;
+
+                document.getElementById('modal-title').textContent = caseData.title;
+                
+                let sajuHtml = `<h3 class="text-lg font-medium mb-2">${caseData.sajuType}</h3>`;
+                sajuHtml += '<div class="saju-grid">';
+                const pillars = ['時', '日', '月', '年'];
+                pillars.forEach(pillar => sajuHtml += `<div class="saju-pillar">${pillar}</div>`);
+                caseData.pillars.forEach(p => sajuHtml += `<div class="saju-char text-blue-700">${p[0]}</div>`);
+                caseData.pillars.forEach(p => sajuHtml += `<div class="saju-char text-gray-700">${p[1]}</div>`);
+                sajuHtml += '</div>';
+
+                document.getElementById('modal-saju').innerHTML = sajuHtml;
+                document.getElementById('modal-analysis').innerHTML = caseData.analysis;
+                
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modal.querySelector('.modal-content').classList.remove('scale-95');
+                }, 10);
+                
+                addHighlightListeners();
+            }
+
+            function hideModal() {
+                modal.classList.add('opacity-0');
+                modal.querySelector('.modal-content').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+            
+            function addHighlightListeners() {
+                const terms = modal.querySelectorAll('.highlight-term');
+                const sajuChars = modal.querySelectorAll('.saju-char');
+                terms.forEach(term => {
+                    const charsToHighlight = term.dataset.chars.split(',');
+                    term.addEventListener('mouseenter', () => sajuChars.forEach(sc => {
+                        if (charsToHighlight.includes(sc.textContent.trim())) sc.classList.add('highlight-saju-char');
+                    }));
+                    term.addEventListener('mouseleave', () => sajuChars.forEach(sc => sc.classList.remove('highlight-saju-char')));
+                });
+            }
+
+            // --- EDITOR LOGIC ---
+            function addNewCase() {
+                const title = newCaseTitleInput.value.trim();
+                const sajuType = newCaseSajuTypeInput.value.trim();
+                const pillarsStr = newCasePillarsInput.value.replace(/\s+/g, '');
+                const analysis = newCaseAnalysisInput.value.trim();
+
+                if (!title || !sajuType || pillarsStr.length !== 8 || !analysis) {
+                    alert('모든 필드를 올바르게 입력해주세요. 사주팔자는 8글자여야 합니다.');
+                    return;
+                }
+
+                const pillars = [
+                    [pillarsStr[0], pillarsStr[1]],
+                    [pillarsStr[2], pillarsStr[3]],
+                    [pillarsStr[4], pillarsStr[5]],
+                    [pillarsStr[6], pillarsStr[7]]
+                ];
+
+                const newCase = {
+                    id: 'case' + (appData.allCases.sections[0].cases.length + 1),
+                    title: title,
+                    sajuType: sajuType,
+                    pillars: pillars,
+                    analysis: analysis
+                };
+
+                appData.allCases.sections[0].cases.push(newCase);
+                
+                // Clear form
+                newCaseTitleInput.value = '';
+                newCaseSajuTypeInput.value = '';
+                newCasePillarsInput.value = '';
+                newCaseAnalysisInput.value = '';
+
+                alert('새로운 사례가 추가되었습니다. 페이지 하단의 다운로드 버튼을 눌러 변경사항을 저장하세요.');
+                
+                // Re-render if currently on the cases tab
+                if (document.querySelector('.nav-btn.active')?.dataset.target === 'allCases') {
+                    renderContent('allCases');
+                }
+                updateDownloadLink();
+            }
+
+            function updateDownloadLink() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+                downloadBtn.setAttribute("href", dataStr);
+                downloadBtn.setAttribute("download", "saju_data.json");
+            }
+        });
+    </script>
+</body>
+</html>

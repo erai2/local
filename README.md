@@ -26,4 +26,3 @@ The application expects an OpenAI API key. You can provide it in two ways:
 
 Do **not** commit your actual `secrets.toml` file or any `.env` files. The provided `.gitignore` already excludes them to keep credentials private.
 
-Uploaded documents are stored in the `uploaded_docs/` directory and are also ignored by Git.

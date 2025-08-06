@@ -3,6 +3,9 @@ import os
 import pandas as pd
 import json
 import re
+import openai
+
+from model_utils import extract_cluster_keywords
 from langchain_community.document_loaders import PyPDFLoader, UnstructuredWordDocumentLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -78,6 +81,20 @@ def summarize_text(text, openai_api_key, model="gpt-3.5-turbo"):
     client = ChatOpenAI(temperature=0, openai_api_key=openai_api_key, model_name=model)
     prompt = f"다음 텍스트를 핵심 내용만 간추려 한국어로 명확하게 요약해줘:\n\n{text[:4000]}"
     return client.invoke(prompt).content
+
+
+def gpt_summary(text_list, openai_api_key):
+    """Summarize a list of texts into a representative topic using GPT."""
+    openai.api_key = openai_api_key
+    joined = "\n".join(f"- {t}" for t in text_list)
+    prompt = f"다음 문장들을 요약하여 주제를 한 문장으로 말해줘:\n{joined}\n\n주제:"
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=60,
+        temperature=0.7,
+    )
+    return response.choices[0].message["content"].strip()
 
 # --- JSON 추출을 위한 신규 함수들 ---
 @st.cache_data
@@ -242,15 +259,46 @@ with tabs[2]:
                     embeddings = model.encode(texts)
                     num_clusters = min(len(docs_for_cluster), 4)
                     kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init='auto').fit(embeddings)
+                    labels = kmeans.labels_
+                    cluster_keywords = extract_cluster_keywords(texts, labels)
+                    st.session_state.cluster_texts = texts
+                    st.session_state.cluster_labels = labels
+                    st.session_state.cluster_keywords = cluster_keywords
                     st.session_state.cluster_result_df = pd.DataFrame({
                         "파일명": [os.path.basename(d[0].metadata['source']) for d in docs_for_cluster],
-                        "그룹 번호": kmeans.labels_
+                        "원문": texts,
+                        "클러스터": labels,
                     })
-                else: st.error("분석 가능한 문서가 2개 미만입니다."); st.session_state.cluster_result_df = None
+                else:
+                    st.error("분석 가능한 문서가 2개 미만입니다.")
+                    st.session_state.cluster_result_df = None
         if st.session_state.cluster_result_df is not None:
             df = st.session_state.cluster_result_df
-            st.success("군집 분석 결과:"); st.dataframe(df.sort_values(by="그룹 번호").reset_index(drop=True))
-            st.download_button("분석 결과 다운로드 (.csv)", df.to_csv(index=False).encode('utf-8-sig'), "cluster_analysis.csv")
+            st.success("군집 분석 결과:")
+            st.dataframe(df.drop(columns=["원문"]).sort_values(by="클러스터").reset_index(drop=True))
+            st.download_button(
+                "분석 결과 다운로드 (.csv)",
+                df.to_csv(index=False).encode('utf-8-sig'),
+                "cluster_analysis.csv",
+            )
+
+            st.subheader("🧠 클러스터 요약 및 키워드")
+            texts = st.session_state.cluster_texts
+            labels = st.session_state.cluster_labels
+            cluster_keywords = st.session_state.cluster_keywords
+            num_clusters = len(set(labels))
+            for i in range(num_clusters):
+                cluster_texts = [texts[j] for j in range(len(texts)) if labels[j] == i]
+                keywords = cluster_keywords.get(i, [])
+                st.markdown(f"### 🔹 클러스터 {i}")
+                st.markdown(f"**📌 주요 키워드:** {', '.join(keywords)}")
+                if openai_api_key and st.button(f"GPT로 클러스터 {i} 요약", key=f"summary_{i}"):
+                    with st.spinner("요약 중..."):
+                        summary = gpt_summary(cluster_texts, openai_api_key)
+                        st.success(f"✅ 요약: {summary}")
+                with st.expander("📄 문장 보기"):
+                    for t in cluster_texts:
+                        st.write(f"- {t}")
 
 # --- Tab 4: 텍스트 구조화 및 JSON 내보내기 ---
 with tabs[3]:

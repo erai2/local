@@ -9,7 +9,7 @@ __pycache__/
 
 # Node
 node_modules/
-frontend/node_modules/
+dist/
 
 # Temporary and sample files
 uploaded_docs/
@@ -26,4 +26,4 @@ saju_data.json
 *.bak
 
 # Streamlit
-.streamlit/secrets.toml
+.streamlit/

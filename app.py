@@ -25,6 +25,101 @@ UPLOAD_DIR = "./uploaded_docs"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
+# --- 사주 전문 지식 DB 구조 및 함수 ---
+# Part/카테고리 정의. 필요시 추후 확장 가능.
+PART_CATEGORIES = {
+    "Part 1. 상법(象法)": ["궁위의 상", "십신의 상", "기타 중요 개념"],
+    "Part 2. 象의 응용 - 실전 예문": ["관인상생", "정재/편재 차이", "여명 재성 해석"],
+    "Part 3. 合法": ["천간합/지지합", "인동 응기"]
+}
+
+# 세션 상태에 DB 초기화 및 예시 데이터 등록
+if 'basic_theory' not in st.session_state:
+    st.session_state.basic_theory = [
+        {
+            "category": "Part 1. 상법(象法) > 궁위의 상",
+            "concept": "궁위의 상",
+            "detail": "궁위는 명식에서 육친의 위치에 따라 드러나는 상징을 해석하는 기초 개념이다."
+        }
+    ]
+if 'terminology' not in st.session_state:
+    st.session_state.terminology = [
+        {
+            "term": "십신",
+            "meaning": "천간과 지지의 관계를 열 가지로 분류한 명리학 용어",
+            "category": "기초"
+        }
+    ]
+if 'case_studies' not in st.session_state:
+    st.session_state.case_studies = [
+        {
+            "category": "Part 2. 象의 응용 - 실전 예문 > 관인상생",
+            "birth_info": "1990-01-01 12:00",
+            "chart": "갑오년 병자월 정축일 경인시",
+            "analysis": "관인상생 구조로 학업운이 왕성",
+            "result": "국가고시 합격"
+        }
+    ]
+
+
+def add_basic_theory(category, concept, detail):
+    """기본 이론/원칙을 DB에 추가합니다."""
+    st.session_state.basic_theory.append({
+        "category": category,
+        "concept": concept,
+        "detail": detail,
+    })
+
+
+def add_terminology(term, meaning, category):
+    """전문 용어를 DB에 추가합니다."""
+    st.session_state.terminology.append({
+        "term": term,
+        "meaning": meaning,
+        "category": category,
+    })
+
+
+def add_case_study(birth_info, chart, analysis, result, category=None):
+    """실제 명식을 DB에 추가합니다."""
+    st.session_state.case_studies.append({
+        "category": category,
+        "birth_info": birth_info,
+        "chart": chart,
+        "analysis": analysis,
+        "result": result,
+    })
+
+
+def search_concept(keyword):
+    """기본 이론 DB에서 키워드를 검색합니다."""
+    pattern = re.compile(keyword, re.IGNORECASE)
+    results = [
+        item for item in st.session_state.basic_theory
+        if any(pattern.search(str(v)) for v in item.values())
+    ]
+    return pd.DataFrame(results)
+
+
+def search_terminology(keyword):
+    """전문 용어 DB에서 키워드를 검색합니다."""
+    pattern = re.compile(keyword, re.IGNORECASE)
+    results = [
+        item for item in st.session_state.terminology
+        if any(pattern.search(str(v)) for v in item.values())
+    ]
+    return pd.DataFrame(results)
+
+
+def search_case_study(keyword):
+    """실전 사례 DB에서 키워드를 검색합니다."""
+    pattern = re.compile(keyword, re.IGNORECASE)
+    results = [
+        item for item in st.session_state.case_studies
+        if any(pattern.search(str(v)) for v in item.values())
+    ]
+    return pd.DataFrame(results)
+
 # --- 1. 핵심 로직 함수 ---
 
 # 기존 함수들 (load_documents, build_rag_chain, summarize_text)
@@ -189,10 +284,11 @@ with st.sidebar:
 
 # 메인 화면 탭
 tabs = st.tabs([
-    "💬 문서 기반 Q&A (RAG)", 
-    "✍️ 문서 요약", 
-    "📊 문서 군집 분석", 
-    "📜 텍스트 구조화 및 JSON 내보내기"
+    "💬 문서 기반 Q&A (RAG)",
+    "✍️ 문서 요약",
+    "📊 문서 군집 분석",
+    "📜 텍스트 구조화 및 JSON 내보내기",
+    "🔮 사주 지식 DB"
 ])
 
 # --- Tab 1: RAG Q&A ---
@@ -333,3 +429,69 @@ with tabs[3]:
             st.header("💾 JSON 파일로 내보내기")
             final_json = json.dumps(st.session_state.structured_data, indent=2, ensure_ascii=False)
             st.download_button("visualization_data.json 다운로드", final_json, "visualization_data.json", "application/json")
+
+# --- Tab 5: 사주 지식 DB ---
+with tabs[4]:
+    st.subheader("전문 사주 지식 관리 및 검색")
+    st.info("기본 이론, 전문용어, 사례를 추가하고 검색할 수 있습니다.")
+
+    db_tabs = st.tabs(["기본 이론", "전문 용어", "사례 연구"])
+
+    # 기본 이론 입력/검색 UI
+    with db_tabs[0]:
+        st.markdown("#### 기본 이론 입력")
+        with st.form("basic_theory_form"):
+            part = st.selectbox("단원", list(PART_CATEGORIES.keys()), key="bt_part")
+            cat = st.selectbox("카테고리", PART_CATEGORIES[part], key="bt_category")
+            concept = st.text_input("개념", key="bt_concept")
+            detail = st.text_area("상세 설명", key="bt_detail")
+            if st.form_submit_button("추가"):
+                add_basic_theory(f"{part} > {cat}", concept, detail)
+                st.success("등록되었습니다.")
+        st.markdown("#### 기본 이론 검색")
+        keyword = st.text_input("검색어", key="bt_search")
+        if st.button("검색", key="bt_search_btn"):
+            result_df = search_concept(keyword)
+            st.dataframe(result_df) if not result_df.empty else st.write("검색 결과가 없습니다.")
+        st.markdown("#### 등록된 기본 이론")
+        st.dataframe(pd.DataFrame(st.session_state.basic_theory))
+
+    # 전문 용어 입력/검색 UI
+    with db_tabs[1]:
+        st.markdown("#### 용어 입력")
+        with st.form("terminology_form"):
+            part = st.selectbox("단원", list(PART_CATEGORIES.keys()), key="term_part")
+            cat = st.selectbox("분류", PART_CATEGORIES[part], key="term_category")
+            term = st.text_input("용어", key="term_term")
+            meaning = st.text_area("의미", key="term_meaning")
+            if st.form_submit_button("추가", key="term_submit"):
+                add_terminology(term, meaning, f"{part} > {cat}")
+                st.success("등록되었습니다.")
+        st.markdown("#### 용어 검색")
+        keyword = st.text_input("검색어", key="term_search")
+        if st.button("검색", key="term_search_btn"):
+            result_df = search_terminology(keyword)
+            st.dataframe(result_df) if not result_df.empty else st.write("검색 결과가 없습니다.")
+        st.markdown("#### 등록된 용어")
+        st.dataframe(pd.DataFrame(st.session_state.terminology))
+
+    # 사례 연구 입력/검색 UI
+    with db_tabs[2]:
+        st.markdown("#### 사례 입력")
+        with st.form("case_form"):
+            part = st.selectbox("단원", list(PART_CATEGORIES.keys()), key="case_part")
+            cat = st.selectbox("분류", PART_CATEGORIES[part], key="case_category")
+            birth_info = st.text_input("출생정보", key="case_birth")
+            chart = st.text_area("명식", key="case_chart")
+            analysis = st.text_area("분석", key="case_analysis")
+            result = st.text_area("결과", key="case_result")
+            if st.form_submit_button("추가", key="case_submit"):
+                add_case_study(birth_info, chart, analysis, result, f"{part} > {cat}")
+                st.success("등록되었습니다.")
+        st.markdown("#### 사례 검색")
+        keyword = st.text_input("검색어", key="case_search")
+        if st.button("검색", key="case_search_btn"):
+            result_df = search_case_study(keyword)
+            st.dataframe(result_df) if not result_df.empty else st.write("검색 결과가 없습니다.")
+        st.markdown("#### 등록된 사례")
+        st.dataframe(pd.DataFrame(st.session_state.case_studies))

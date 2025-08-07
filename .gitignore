@@ -6,11 +6,6 @@ __pycache__/
 # Environment
 .env
 *.log
-
-# Node
-node_modules/
-frontend/node_modules/
-
 # Temporary and sample files
 uploaded_docs/
 *.html
@@ -26,4 +21,3 @@ saju_data.json
 *.bak
 
 # Streamlit
-.streamlit/secrets.toml
